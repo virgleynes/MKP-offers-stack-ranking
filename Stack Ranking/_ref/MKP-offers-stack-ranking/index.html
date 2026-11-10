@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stack rank — Information prioritization</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      body.stack-rank {
+        min-height: 100vh;
+        font-family: "Avenir Next forINTUIT", "Avenir Next", Avenir, -apple-system,
+          BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #000;
+        background: #e2e9ed;
+      }
+
+      .stack-rank__app {
+        max-width: 1143px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+      }
+
+      .stack-rank__instructions {
+        margin: 0 0 24px;
+        font-size: 24px;
+        font-weight: 400;
+        line-height: 1.35;
+      }
+
+      .stack-rank__name {
+        display: flex;
+        align-items: flex-end;
+        gap: 14px;
+        margin-bottom: 32px;
+      }
+
+      .stack-rank__name-label {
+        flex-shrink: 0;
+        font-size: 24px;
+        font-weight: 400;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+
+      .stack-rank__name-input {
+        flex: 1;
+        min-width: 0;
+        padding: 4px 0 6px;
+        border: 0;
+        border-bottom: 1px solid #000;
+        background: transparent;
+        font-family: inherit;
+        font-size: 24px;
+        font-weight: 400;
+        line-height: 1.2;
+        color: #000;
+        outline: none;
+      }
+
+      .stack-rank__name-input:focus {
+        border-bottom-color: #003e31;
+      }
+
+      .stack-rank__table {
+        width: 100%;
+      }
+
+      .stack-rank__header {
+        display: grid;
+        grid-template-columns: 90px 1fr 434px 64px;
+        align-items: center;
+        padding: 16px 0;
+        border-bottom: 1px solid #859299;
+        font-size: 36px;
+        font-weight: 400;
+        line-height: 1.1;
+        text-align: center;
+      }
+
+      .stack-rank__header-type {
+        text-align: center;
+      }
+
+      .stack-rank__body {
+        display: grid;
+        grid-template-columns: 90px 1fr;
+        align-items: start;
+      }
+
+      .stack-rank__ranks {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .stack-rank__rank {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 72px;
+        padding: 16px 0;
+        border-bottom: 1px solid #859299;
+        font-size: 36px;
+        font-weight: 600;
+        line-height: 1.1;
+        text-align: center;
+      }
+
+      .stack-rank__sortable {
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+      }
+
+      .stack-rank__row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 434px 64px;
+        align-items: center;
+        min-height: 72px;
+        padding: 16px 24px 16px 0;
+        border-bottom: 1px solid #859299;
+        font-size: 36px;
+        font-weight: 600;
+        line-height: 1.1;
+        text-align: center;
+        background: #e2e9ed;
+        cursor: grab;
+        touch-action: none;
+        user-select: none;
+      }
+
+      .stack-rank__row:active {
+        cursor: grabbing;
+      }
+
+      .stack-rank__row--dragging {
+        opacity: 0.45;
+      }
+
+      .stack-rank__row--over {
+        box-shadow: inset 0 3px 0 #003e31;
+      }
+
+      .stack-rank__row-type,
+      .stack-rank__row-example {
+        word-break: break-word;
+      }
+
+      .stack-rank__handle {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        width: 64px;
+        padding: 0 12px;
+        pointer-events: none;
+      }
+
+      .stack-rank__handle-line {
+        display: block;
+        width: 40px;
+        height: 3px;
+        border-radius: 2px;
+        background: #000;
+      }
+
+      .stack-rank__actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 48px;
+        padding: 10px;
+      }
+
+      .stack-rank__btn {
+        min-width: 120px;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.25;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+      }
+
+      .stack-rank__btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .stack-rank__btn--secondary {
+        border: 2px solid #003e31;
+        background: #fff;
+        color: #003e31;
+      }
+
+      .stack-rank__btn--secondary:hover:not(:disabled) {
+        background: rgba(0, 62, 49, 0.06);
+      }
+
+      .stack-rank__btn--primary {
+        border: 2px solid #003e31;
+        background: #003e31;
+        color: #fff;
+      }
+
+      .stack-rank__btn--primary:hover:not(:disabled) {
+        background: #005244;
+        border-color: #005244;
+      }
+
+      .stack-rank__success {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        min-height: calc(100vh - 96px);
+        padding: 40px 24px;
+        text-align: center;
+      }
+
+      .stack-rank__app[data-phase="success"] .stack-rank__form {
+        display: none;
+      }
+
+      .stack-rank__app[data-phase="success"] .stack-rank__success {
+        display: flex;
+      }
+
+      .stack-rank__success-illustration {
+        width: 240px;
+        height: 240px;
+      }
+
+      .stack-rank__success-title {
+        margin: 0;
+        max-width: 480px;
+        font-size: 40px;
+        font-weight: 500;
+        line-height: 32px;
+        color: #393a3d;
+      }
+
+      .stack-rank__error {
+        margin: 16px 0 0;
+        font-size: 16px;
+        color: #b80000;
+        text-align: right;
+      }
+
+      @media (max-width: 1100px) {
+        .stack-rank__header,
+        .stack-rank__row {
+          font-size: 24px;
+        }
+
+        .stack-rank__header {
+          grid-template-columns: 56px 1fr 200px 48px;
+        }
+
+        .stack-rank__body {
+          grid-template-columns: 56px 1fr;
+        }
+
+        .stack-rank__row {
+          grid-template-columns: minmax(0, 1fr) 200px 48px;
+          padding-right: 12px;
+        }
+
+        .stack-rank__handle {
+          width: 48px;
+          gap: 12px;
+        }
+
+        .stack-rank__handle-line {
+          width: 28px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .stack-rank__app {
+          padding-top: 24px;
+        }
+
+        .stack-rank__instructions,
+        .stack-rank__name-label,
+        .stack-rank__name-input {
+          font-size: 18px;
+        }
+
+        .stack-rank__name {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+
+        .stack-rank__header {
+          display: none;
+        }
+
+        .stack-rank__body {
+          grid-template-columns: 40px 1fr;
+        }
+
+        .stack-rank__rank,
+        .stack-rank__row {
+          font-size: 16px;
+          min-height: 56px;
+        }
+
+        .stack-rank__row {
+          grid-template-columns: minmax(0, 1fr) 48px;
+          padding-right: 8px;
+        }
+
+        .stack-rank__row-example {
+          display: none;
+        }
+
+        .stack-rank__actions {
+          flex-direction: column-reverse;
+          gap: 12px;
+        }
+
+        .stack-rank__btn {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body class="stack-rank">
+    <div class="stack-rank__app" data-phase="form">
+      <div class="stack-rank__form">
+        <p class="stack-rank__instructions">
+          Stack rank the type of information below based in how much each one will influence your
+          decision to apply by dragging each row to your perceived ranking. When you’re done, press
+          “Submit”.
+        </p>
+
+        <div class="stack-rank__name">
+          <label class="stack-rank__name-label" for="stack-rank-name">Your full name:</label>
+          <input
+            class="stack-rank__name-input"
+            id="stack-rank-name"
+            name="fullName"
+            type="text"
+            autocomplete="name"
+            required
+          />
+        </div>
+
+        <div class="stack-rank__table" role="region" aria-label="Information ranking table">
+          <div class="stack-rank__header" aria-hidden="true">
+            <span>Rank</span>
+            <span class="stack-rank__header-type">Information type</span>
+            <span>Example</span>
+            <span></span>
+          </div>
+
+          <div class="stack-rank__body">
+            <div class="stack-rank__ranks" aria-hidden="true">
+              <div class="stack-rank__rank">1</div>
+              <div class="stack-rank__rank">2</div>
+              <div class="stack-rank__rank">3</div>
+              <div class="stack-rank__rank">4</div>
+              <div class="stack-rank__rank">5</div>
+              <div class="stack-rank__rank">6</div>
+              <div class="stack-rank__rank">7</div>
+              <div class="stack-rank__rank">8</div>
+            </div>
+
+            <div
+              class="stack-rank__sortable"
+              id="stack-rank-sortable"
+              role="list"
+              aria-label="Draggable information rows"
+            ></div>
+          </div>
+        </div>
+
+        <div class="stack-rank__actions">
+          <button type="button" class="stack-rank__btn stack-rank__btn--secondary" id="stack-rank-reset">
+            Reset
+          </button>
+          <div>
+            <p class="stack-rank__error" id="stack-rank-error" hidden role="alert"></p>
+            <button type="button" class="stack-rank__btn stack-rank__btn--primary" id="stack-rank-submit">
+              Submit
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack-rank__success" role="status" aria-live="polite">
+        <img
+          class="stack-rank__success-illustration"
+          src="assets/celebration.svg"
+          alt=""
+          width="240"
+          height="240"
+        />
+        <h1 class="stack-rank__success-title">Thank you for your input!</h1>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        'use strict';
+
+        /** Replace with your deployed Google Apps Script web app URL. */
+        var GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzU8uCu59yFdtk4xHl9zQ5JNRrZgaFNc6d0WIXSy38Um7zqYYelsqsWMQHq1lD5frn7/exec';
+
+        var DEFAULT_ITEMS = [
+          { id: 'apr', type: 'APR / Interest amount', example: '20%' },
+          { id: 'total-interest-fees', type: 'Total interest & Fees', example: '$25,000 + $0 fees' },
+          { id: 'loan-amount', type: 'Estimated loan amount', example: 'Up to $200K' },
+          { id: 'term-length', type: 'Term length', example: '12 months' },
+          { id: 'repayment', type: 'Repayment structure', example: '10% of invoices' },
+          { id: 'funding-speed', type: 'Funding speed', example: '1-2 days' },
+          { id: 'fees', type: 'Fees', example: '$0 origination fee' },
+          { id: 'monthly-payment', type: 'Monthly payment amount', example: '$1,500/mo' }
+        ];
+
+        var app = document.querySelector('.stack-rank__app');
+        var nameInput = document.getElementById('stack-rank-name');
+        var sortable = document.getElementById('stack-rank-sortable');
+        var resetBtn = document.getElementById('stack-rank-reset');
+        var submitBtn = document.getElementById('stack-rank-submit');
+        var errorEl = document.getElementById('stack-rank-error');
+
+        if (!app || !sortable) return;
+
+        var items = DEFAULT_ITEMS.slice();
+        var dragState = { sourceId: null, overId: null };
+
+        function renderRows() {
+          sortable.innerHTML = items
+            .map(function (item) {
+              return (
+                '<div class="stack-rank__row" draggable="true" data-id="' +
+                item.id +
+                '" role="listitem" aria-grabbed="false">' +
+                '<span class="stack-rank__row-type">' +
+                item.type +
+                '</span>' +
+                '<span class="stack-rank__row-example">' +
+                item.example +
+                '</span>' +
+                '<span class="stack-rank__handle" aria-hidden="true">' +
+                '<span class="stack-rank__handle-line"></span>' +
+                '<span class="stack-rank__handle-line"></span>' +
+                '</span>' +
+                '</div>'
+              );
+            })
+            .join('');
+
+          bindRowEvents();
+        }
+
+        function moveItem(sourceId, targetId) {
+          if (sourceId === targetId) return;
+
+          var sourceIndex = items.findIndex(function (item) {
+            return item.id === sourceId;
+          });
+          var targetIndex = items.findIndex(function (item) {
+            return item.id === targetId;
+          });
+
+          if (sourceIndex < 0 || targetIndex < 0) return;
+
+          var next = items.slice();
+          var removed = next.splice(sourceIndex, 1)[0];
+          next.splice(targetIndex, 0, removed);
+          items = next;
+          renderRows();
+        }
+
+        function clearDragStyles() {
+          sortable.querySelectorAll('.stack-rank__row').forEach(function (row) {
+            row.classList.remove('stack-rank__row--dragging', 'stack-rank__row--over');
+            row.setAttribute('aria-grabbed', 'false');
+          });
+          dragState.sourceId = null;
+          dragState.overId = null;
+        }
+
+        function bindRowEvents() {
+          sortable.querySelectorAll('.stack-rank__row').forEach(function (row) {
+            row.addEventListener('dragstart', onDragStart);
+            row.addEventListener('dragend', onDragEnd);
+            row.addEventListener('dragover', onDragOver);
+            row.addEventListener('dragleave', onDragLeave);
+            row.addEventListener('drop', onDrop);
+          });
+        }
+
+        function onDragStart(event) {
+          var row = event.currentTarget;
+          dragState.sourceId = row.dataset.id;
+          row.classList.add('stack-rank__row--dragging');
+          row.setAttribute('aria-grabbed', 'true');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', row.dataset.id);
+        }
+
+        function onDragEnd() {
+          clearDragStyles();
+        }
+
+        function onDragOver(event) {
+          event.preventDefault();
+          var row = event.currentTarget;
+          if (row.dataset.id === dragState.sourceId) return;
+
+          sortable.querySelectorAll('.stack-rank__row').forEach(function (el) {
+            el.classList.remove('stack-rank__row--over');
+          });
+          row.classList.add('stack-rank__row--over');
+          dragState.overId = row.dataset.id;
+          event.dataTransfer.dropEffect = 'move';
+        }
+
+        function onDragLeave(event) {
+          var row = event.currentTarget;
+          if (!row.contains(event.relatedTarget)) {
+            row.classList.remove('stack-rank__row--over');
+          }
+        }
+
+        function onDrop(event) {
+          event.preventDefault();
+          var targetId = event.currentTarget.dataset.id;
+          var sourceId = dragState.sourceId || event.dataTransfer.getData('text/plain');
+          moveItem(sourceId, targetId);
+          clearDragStyles();
+        }
+
+        function resetRanking() {
+          items = DEFAULT_ITEMS.slice();
+          renderRows();
+          if (errorEl) {
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+          }
+        }
+
+        function getRankingsPayload() {
+          return items.map(function (item, index) {
+            return {
+              rank: index + 1,
+              id: item.id,
+              type: item.type,
+              example: item.example
+            };
+          });
+        }
+
+        function showSuccess() {
+          app.dataset.phase = 'success';
+          document.title = 'Thank you — Stack rank';
+        }
+
+        function showError(message) {
+          if (!errorEl) return;
+          errorEl.hidden = false;
+          errorEl.textContent = message;
+        }
+
+        function submitRanking() {
+          var name = (nameInput && nameInput.value.trim()) || '';
+
+          if (!name) {
+            showError('Please enter your full name before submitting.');
+            if (nameInput) nameInput.focus();
+            return;
+          }
+
+          if (errorEl) {
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+          }
+
+          var payload = {
+            timestamp: new Date().toISOString(),
+            name: name,
+            rankings: getRankingsPayload()
+          };
+
+          submitBtn.disabled = true;
+          resetBtn.disabled = true;
+
+          if (!GOOGLE_SCRIPT_URL) {
+            console.info('Stack rank submission (Google Sheet URL not configured):', payload);
+            showSuccess();
+            return;
+          }
+
+          fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+          })
+            .then(function () {
+              showSuccess();
+            })
+            .catch(function () {
+              showError('Something went wrong while submitting. Please try again.');
+              submitBtn.disabled = false;
+              resetBtn.disabled = false;
+            });
+        }
+
+        resetBtn.addEventListener('click', resetRanking);
+        submitBtn.addEventListener('click', submitRanking);
+
+        renderRows();
+      })();
+    </script>
+  </body>
+</html>
